@@ -81,7 +81,7 @@ tag_header_cb_newline (struct _parser *parser, FILE *f_out)
 	{
 		close_tag_push (parser, strspn (parser->cursor, "#"));
 		html_print_header (parser->close_tag[0], false, f_out);
-		parser->buf_pos += parser->close_tag[0];
+		parser->buf_pos += parser->close_tag[0] - 1;
 		// End parsing
 		return true;
 	}
