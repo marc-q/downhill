@@ -1,0 +1,21 @@
+html
+{
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+body
+{
+	width: 80%;
+	margin-left: 10%;
+}
+
+b, strong
+{
+	color: #CE422B;
+}
+
+blockquote, pre
+{
+	background-color: lightgrey;
+	padding: 1%;
+}
