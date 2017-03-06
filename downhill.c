@@ -3,41 +3,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include "src/html.h"
 #include "downhill.h"
-
-//
-// HTML Templates
-//
-
-static void
-print_html_page_head (const char *pagename, FILE *f_doc)
-{
-	fputs ("<html>\n<head>\n\t\t<meta charset=\"UTF-8\">\n\t\t<title>", f_doc);
-	fputs (pagename, f_doc);
-	fputs ("</title>\n<link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n", f_doc);
-}
-
-static void
-print_html_page_footer (FILE *f_doc)
-{
-	fputs ("\n</body>\n</html>", f_doc);
-}
-
-static void
-print_html_tag (const char *name, const bool close, FILE *f_out)
-{
-	fputs ((close ? "</" : "<"), f_out);
-	fputs (name, f_out);
-	fputc ('>', f_out);
-}
-
-static void
-print_html_tag_header (const size_t tier, const bool close, FILE *f_out)
-{
-	fputs ((close ? "</h" : "<h"), f_out);
-	fputc (tier + '0', f_out);
-	fputs ((close ? ">\n" : ">"), f_out);
-}
 
 //
 // Parser (struct)
@@ -81,17 +48,17 @@ close_tag_pop (struct _parser *self, FILE *f_out)
 		case CLOSE_TAG_H4:
 		case CLOSE_TAG_H5:
 		case CLOSE_TAG_H6:
-			print_html_tag_header (self->close_tag[0], true, f_out);
+			html_print_header (self->close_tag[0], true, f_out);
 			break;
 		case CLOSE_TAG_BLOCKQUOTE:
-			print_html_tag ("blockquote", true, f_out);
+			html_print_tag ("blockquote", true, f_out);
 			break;
 		case CLOSE_TAG_UL:
 			self->list--;
-			print_html_tag ("ul", true, f_out);
+			html_print_tag ("ul", true, f_out);
 			break;
 		case CLOSE_TAG_LI:
-			print_html_tag ("li", true, f_out);
+			html_print_tag ("li", true, f_out);
 			fputc ('\n', f_out);
 			break;
 		default:
@@ -113,9 +80,8 @@ tag_header_cb_newline (struct _parser *parser, FILE *f_out)
 	if (*parser->cursor == '#')
 	{
 		close_tag_push (parser, strspn (parser->cursor, "#"));
+		html_print_header (parser->close_tag[0], false, f_out);
 		parser->buf_pos += parser->close_tag[0];
-		print_html_tag_header (parser->close_tag[0], false, f_out);
-		
 		// End parsing
 		return true;
 	}
@@ -125,14 +91,14 @@ tag_header_cb_newline (struct _parser *parser, FILE *f_out)
 		if (parser->line_end[1] == '=')
 		{
 			close_tag_push (parser, CLOSE_TAG_H1);
-			print_html_tag ("h1", false, f_out);
+			html_print_tag ("h1", false, f_out);
 			parser->skip_line = true;
 		}
 		// MD-Header: tier two
 		else if (parser->line_end[1] == '-')
 		{
 			close_tag_push (parser, CLOSE_TAG_H2);
-			print_html_tag ("h2", false, f_out);
+			html_print_tag ("h2", false, f_out);
 			parser->skip_line = true;
 		}
 	}
@@ -145,7 +111,7 @@ tag_blockquote_cb_newline (struct _parser *parser, FILE *f_out)
 {
 	if (*parser->cursor == '>')
 	{
-		print_html_tag ("blockquote", false, f_out);
+		html_print_tag ("blockquote", false, f_out);
 		close_tag_push (parser, CLOSE_TAG_BLOCKQUOTE);
 		return true;
 	}
@@ -173,7 +139,7 @@ tag_ul_cb_newline (struct _parser *parser, FILE *f_out)
 	{
 		if (parser->list == 0)
 		{
-			print_html_tag ("ul", false, f_out);
+			html_print_tag ("ul", false, f_out);
 			close_tag_push (parser, CLOSE_TAG_UL);
 			parser->list++;
 		}
@@ -192,7 +158,7 @@ tag_ul_cb_newline (struct _parser *parser, FILE *f_out)
 	{
 		if (parser->list == 1)
 		{
-			print_html_tag ("ul", false, f_out);
+			html_print_tag ("ul", false, f_out);
 			close_tag_push (parser, CLOSE_TAG_UL);
 			parser->list++;
 		}
@@ -203,7 +169,7 @@ tag_ul_cb_newline (struct _parser *parser, FILE *f_out)
 		return false;
 	}
 	// LI
-	print_html_tag ("li", false, f_out);
+	html_print_tag ("li", false, f_out);
 	close_tag_push (parser, CLOSE_TAG_LI);
 	return true;
 }
@@ -213,17 +179,17 @@ tag_emphasis_cb_char (struct _parser *parser, FILE *f_out)
 {
 	if (*parser->cursor == '`')
 	{
-		print_html_tag ("pre", parser->emphasis, f_out);
+		html_print_tag ("pre", parser->emphasis, f_out);
 	}
 	else
 	{
 		switch (strspn (parser->cursor, "*_"))
 		{
 			case 1:
-				print_html_tag ("i", parser->emphasis, f_out);
+				html_print_tag ("i", parser->emphasis, f_out);
 				break;
 			case 2:
-				print_html_tag ("b", parser->emphasis, f_out);
+				html_print_tag ("b", parser->emphasis, f_out);
 				parser->buf_pos++;
 				break;
 			case 3:
@@ -279,12 +245,6 @@ parse_markdown (const char *buf, const size_t buf_len, FILE *f_doc)
 			{
 				continue;
 			}
-			
-			if (*parser.cursor == '\n' && parser.close_tag[0] == CLOSE_TAG_NONE)
-			{
-				print_html_tag ("p", true, f_doc);
-				continue;
-			}
 		}
 		
 		if (tag_emphasis_cb_char (&parser, f_doc))
@@ -295,10 +255,6 @@ parse_markdown (const char *buf, const size_t buf_len, FILE *f_doc)
 		// Close the previously opened tag
 		if (*parser.cursor == '\n')
 		{
-			if (parser.close_tag[0] == CLOSE_TAG_NONE)
-			{
-				print_html_tag ("p", false, f_doc);
-			}
 			close_tag_pop (&parser, f_doc);
 		}
 		// Format
@@ -345,11 +301,11 @@ parse_file (const char *filename_src, const char *filename_doc)
 	fclose (f_src);
 	
 	// Generate the HTML file
-	print_html_page_head (filename_doc, f_doc);
+	html_print_head (filename_doc, f_doc);
 	
 	parse_markdown (buf, buf_len, f_doc);
 	
-	print_html_page_footer (f_doc);
+	html_print_footer (f_doc);
 	
 	free (buf);
 	fclose (f_doc);
