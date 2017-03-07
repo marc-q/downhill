@@ -35,5 +35,5 @@ html_print_header (const size_t tier, const bool close, FILE *f)
 {
 	fputs ((close ? "</h" : "<h"), f);
 	fputc (tier + '0', f);
-	fputs ((close ? ">\n" : ">"), f);
+	fputs ((close ? ">" : ">"), f);
 }
