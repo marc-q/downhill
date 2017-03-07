@@ -16,9 +16,11 @@ parser_init (struct _parser *self, const char *buf, const size_t buf_len)
 	self->list = 0;
 	self->emphasis = false;
 	self->skip_line = false;
-	self->close_tag[0] = CLOSE_TAG_NONE;
-	self->close_tag[1] = CLOSE_TAG_NONE;
-	self->close_tag[2] = CLOSE_TAG_NONE;
+	
+	for (size_t i = 0; i < TAG_MAX; i++)
+	{
+		self->tag[i] = TAG_NONE;
+	}
 	
 	self->buf_pos = 0;
 	self->buf_len = buf_len;
@@ -30,44 +32,62 @@ parser_init (struct _parser *self, const char *buf, const size_t buf_len)
 }
 
 static void
-close_tag_push (struct _parser *self, const enum close_tags tag)
+parser_set_cursor (struct _parser *self, const size_t pos)
 {
-	self->close_tag[2] = self->close_tag[1];
-	self->close_tag[1] = self->close_tag[0];
-	self->close_tag[0] = tag;
+	self->buf_pos = pos;
+	self->cursor = &self->buf[self->buf_pos];
 }
 
 static void
-close_tag_pop (struct _parser *self, FILE *f_out)
+tag_push (struct _parser *self, const enum _tags tag, const bool close)
 {
-	switch (self->close_tag[0])
+	for (size_t i = TAG_MAX - 1; i > 0; i--)
 	{
-		case CLOSE_TAG_H1:
-		case CLOSE_TAG_H2:
-		case CLOSE_TAG_H3:
-		case CLOSE_TAG_H4:
-		case CLOSE_TAG_H5:
-		case CLOSE_TAG_H6:
-			html_print_header (self->close_tag[0], true, f_out);
+		self->tag[i] = self->tag[i - 1];
+	}
+	self->tag[0] = (close << 31) | (tag & TAG_MASK_VALUE);
+}
+
+static void
+tag_pop (struct _parser *self, FILE *f_out)
+{
+	const bool close = self->tag[0] & TAG_MASK_CLOSE;
+	
+	switch (self->tag[0] & TAG_MASK_VALUE)
+	{
+		case TAG_H1:
+		case TAG_H2:
+		case TAG_H3:
+		case TAG_H4:
+		case TAG_H5:
+		case TAG_H6:
+			html_print_header (self->tag[0] & TAG_MASK_VALUE, close, f_out);
 			break;
-		case CLOSE_TAG_BLOCKQUOTE:
-			html_print_tag ("blockquote", true, f_out);
+		case TAG_BLOCKQUOTE:
+			html_print_tag ("blockquote", close, f_out);
 			break;
-		case CLOSE_TAG_UL:
+		case TAG_UL:
 			self->list--;
-			html_print_tag ("ul", true, f_out);
+			html_print_tag ("ul", close, f_out);
 			break;
-		case CLOSE_TAG_LI:
-			html_print_tag ("li", true, f_out);
-			fputc ('\n', f_out);
+		case TAG_LI:
+			html_print_tag ("li", close, f_out);
 			break;
 		default:
-			fputc ('\n', f_out);
 			return;
 	}
-	self->close_tag[0] = self->close_tag[1];
-	self->close_tag[1] = self->close_tag[2];
-	self->close_tag[2] = CLOSE_TAG_NONE;
+	for (size_t i = 1; i < TAG_MAX; i++)
+	{
+		self->tag[i - 1] = self->tag[i];
+	}
+	self->tag[TAG_MAX - 1] = TAG_NONE;
+}
+
+static void
+tag_add (struct _parser *self, const enum _tags tag)
+{
+	tag_push (self, tag, true);
+	tag_push (self, tag, false);
 }
 
 //
@@ -75,14 +95,12 @@ close_tag_pop (struct _parser *self, FILE *f_out)
 //
 
 static bool
-tag_header_cb_newline (struct _parser *parser, FILE *f_out)
+tag_header_cb_newline (struct _parser *parser)
 {
 	if (*parser->cursor == '#')
 	{
-		close_tag_push (parser, strspn (parser->cursor, "#"));
-		html_print_header (parser->close_tag[0], false, f_out);
-		parser->buf_pos += parser->close_tag[0] - 1;
-		// End parsing
+		tag_add (parser, strspn (parser->cursor, "#"));
+		parser_set_cursor (parser, parser->buf_pos + parser->tag[0]);
 		return true;
 	}
 	else if ((size_t) (parser->line_end - parser->buf) < parser->buf_len)
@@ -90,29 +108,28 @@ tag_header_cb_newline (struct _parser *parser, FILE *f_out)
 		// MD-Header: tier one
 		if (parser->line_end[1] == '=')
 		{
-			close_tag_push (parser, CLOSE_TAG_H1);
-			html_print_tag ("h1", false, f_out);
+			tag_add (parser, TAG_H1);
 			parser->skip_line = true;
+			return true;
 		}
 		// MD-Header: tier two
 		else if (parser->line_end[1] == '-')
 		{
-			close_tag_push (parser, CLOSE_TAG_H2);
-			html_print_tag ("h2", false, f_out);
+			tag_add (parser, TAG_H2);
 			parser->skip_line = true;
+			return true;
 		}
 	}
-	// Do not end parsing
 	return false;
 }
 
 static bool
-tag_blockquote_cb_newline (struct _parser *parser, FILE *f_out)
+tag_blockquote_cb_newline (struct _parser *parser)
 {
 	if (*parser->cursor == '>')
 	{
-		html_print_tag ("blockquote", false, f_out);
-		close_tag_push (parser, CLOSE_TAG_BLOCKQUOTE);
+		tag_add (parser, TAG_BLOCKQUOTE);
+		parser_set_cursor (parser, parser->buf_pos + 1);
 		return true;
 	}
 	return false;
@@ -125,7 +142,7 @@ tag_linebreak_cb_newline (struct _parser *parser, FILE *f_out)
 	    parser->buf[parser->buf_pos - 2] == ' ' &&
 	    parser->buf[parser->buf_pos - 3] == ' ')
 	{
-		fputs ("<br />\n", f_out);
+		fputs ("<br />", f_out);
 	}
 	return false;
 } 
@@ -140,15 +157,15 @@ tag_ul_cb_newline (struct _parser *parser, FILE *f_out)
 		if (parser->list == 0)
 		{
 			html_print_tag ("ul", false, f_out);
-			close_tag_push (parser, CLOSE_TAG_UL);
+			tag_push (parser, TAG_UL, true);
 			parser->list++;
 		}
 		else if (parser->list == 2)
 		{
-			close_tag_pop (parser, f_out);
+			tag_pop (parser, f_out);
 		}
 		
-		parser->buf_pos++;
+		parser_set_cursor (parser, parser->buf_pos + 2);
 	}
 	// Sub UL
 	else if (parser->cursor[0] == '\t' &&
@@ -159,18 +176,17 @@ tag_ul_cb_newline (struct _parser *parser, FILE *f_out)
 		if (parser->list == 1)
 		{
 			html_print_tag ("ul", false, f_out);
-			close_tag_push (parser, CLOSE_TAG_UL);
+			tag_push (parser, TAG_UL, true);
 			parser->list++;
 		}
-		parser->buf_pos += 3;
+		parser_set_cursor (parser, parser->buf_pos + 4);
 	}
 	else
 	{
 		return false;
 	}
 	// LI
-	html_print_tag ("li", false, f_out);
-	close_tag_push (parser, CLOSE_TAG_LI);
+	tag_add (parser, TAG_LI);
 	return true;
 }
 
@@ -238,12 +254,12 @@ parse_markdown (const char *buf, const size_t buf_len, FILE *f_doc)
 				continue;
 			}
 			
-			if (tag_header_cb_newline (&parser, f_doc) ||
-			    tag_blockquote_cb_newline (&parser, f_doc) ||
+			if (tag_header_cb_newline (&parser) ||
+			    tag_blockquote_cb_newline (&parser) ||
 			    tag_linebreak_cb_newline (&parser, f_doc) ||
 			    tag_ul_cb_newline (&parser, f_doc))
 			{
-				continue;
+				tag_pop (&parser, f_doc);
 			}
 		}
 		
@@ -255,13 +271,10 @@ parse_markdown (const char *buf, const size_t buf_len, FILE *f_doc)
 		// Close the previously opened tag
 		if (*parser.cursor == '\n')
 		{
-			close_tag_pop (&parser, f_doc);
+			tag_pop (&parser, f_doc);
 		}
 		// Format
-		else
-		{
-			fputc (*parser.cursor, f_doc);
-		}
+		fputc (*parser.cursor, f_doc);
 	}
 }
 
