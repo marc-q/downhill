@@ -275,11 +275,11 @@ tag_emphasis_cb_char (struct _parser *parser, FILE *f_out)
 {
 	if (*parser->cursor == '`')
 	{
-		html_print_tag ("pre", parser->emphasis, f_out);
+		html_print_tag ("pre", parser->code, f_out);
 		parser_set_cursor (parser, parser->buf_pos + 1);
 		parser->code = !parser->code;
 	}
-	else if (*parser->cursor == '|')
+	else if (&parser->code && *parser->cursor == '|')
 	{
 		if (parser->thead)
 		{
@@ -293,6 +293,7 @@ tag_emphasis_cb_char (struct _parser *parser, FILE *f_out)
 			html_print_tag ("td", false, f_out);
 			parser_set_cursor (parser, parser->buf_pos + 2);
 		}
+		return;
 	}
 	else if (!parser->code)
 	{
