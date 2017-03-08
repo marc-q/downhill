@@ -19,23 +19,39 @@ enum _tags
 	
 	TAG_BLOCKQUOTE,
 	TAG_UL,
-	TAG_LI
+	TAG_LI,
+	TAG_TABLE,
+	TAG_THEAD,
+	TAG_TH,
+	TAG_TBODY,
+	TAG_TR,
+	TAG_TD
 };
 
 struct _parser
 {
 	size_t list;
-	bool emphasis;
-	bool skip_line;
 	
+	// Flags: Misc
+	bool emphasis;
+	bool code;
+	bool table;
+	bool thead;
+	
+	// Flags: Line
+	bool line_last;
+	bool line_skip;
+	
+	// Tags
+	size_t pop_count;
 	enum _tags tag[TAG_MAX];
 	
+	// Buffer
 	size_t buf_pos;
 	size_t buf_len;
 	const char *buf;
 	
 	const char *cursor;
-	
 	char *line_end;
 };
 
