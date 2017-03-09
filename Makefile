@@ -1,5 +1,5 @@
 CC = gcc
-OBJECTS = src/html.c downhill.c
+OBJECTS = src/html.c src/tag.c downhill.c
 LIBS =
 CFLAGS = -Wall -Wextra -O2
 BINDIR = $(DESTDIR)/usr/bin
