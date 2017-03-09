@@ -1,36 +1,11 @@
 #ifndef __DOWNHILL_H__
 #define __DOWNHILL_H__
 
-#define TAG_MAX 20
-#define TAG_MASK_VALUE 0x7FFFFFFF
-#define TAG_MASK_CLOSE 0x80000000
-
-// The last bit is reserved for the open/close flag!
-enum _tags
-{
-	TAG_NONE = 0,
-	
-	TAG_H1,
-	TAG_H2,
-	TAG_H3,
-	TAG_H4,
-	TAG_H5,
-	TAG_H6,
-	
-	TAG_BLOCKQUOTE,
-	TAG_UL,
-	TAG_LI,
-	TAG_TABLE,
-	TAG_THEAD,
-	TAG_TH,
-	TAG_TBODY,
-	TAG_TR,
-	TAG_TD
-};
-
 struct _parser
 {
-	size_t list;
+	// List
+	bool list;
+	size_t list_depth;
 	
 	// Flags: Misc
 	bool emphasis;
@@ -44,7 +19,7 @@ struct _parser
 	
 	// Tags
 	size_t pop_count;
-	enum _tags tag[TAG_MAX];
+	struct _taglist taglist;
 	
 	// Buffer
 	size_t buf_pos;
