@@ -217,15 +217,9 @@ tag_table_cb_newline (struct _parser *parser, FILE *f_out)
 }
 
 static void
-tag_emphasis_cb_char (struct _parser *parser, FILE *f_out)
+tag_table_cb_char (struct _parser *parser)
 {
-	if (*parser->cursor == '`')
-	{
-		html_print_tag ("pre", parser->code, f_out);
-		parser_set_cursor (parser, parser->buf_pos + 1);
-		parser->code = !parser->code;
-	}
-	else if (!parser->code && *parser->cursor == '|')
+	if (!parser->code && *parser->cursor == '|')
 	{
 		if (parser->thead)
 		{
@@ -239,7 +233,17 @@ tag_emphasis_cb_char (struct _parser *parser, FILE *f_out)
 			parser_insert_tag (parser, TAG_TD, true);
 			parser_set_cursor (parser, parser->buf_pos + 2);
 		}
-		return;
+	}
+}
+
+static void
+tag_emphasis_cb_char (struct _parser *parser, FILE *f_out)
+{
+	if (*parser->cursor == '`')
+	{
+		html_print_tag ("pre", parser->code, f_out);
+		parser_set_cursor (parser, parser->buf_pos + 1);
+		parser->code = !parser->code;
 	}
 	else if (!parser->code)
 	{
@@ -315,7 +319,7 @@ parse_markdown (const char *buf, const size_t buf_len, FILE *f_doc)
 		}
 		
 		// Char callbacks
-		tag_emphasis_cb_char (&parser, f_doc);
+		tag_table_cb_char (&parser);
 		
 		// Close the previously opened tag
 		if (*parser.cursor == '\n')
@@ -329,6 +333,7 @@ parse_markdown (const char *buf, const size_t buf_len, FILE *f_doc)
 				tag_pop (&parser.taglist, f_doc);
 			}
 		}
+		tag_emphasis_cb_char (&parser, f_doc);
 		// Format
 		fputc (*parser.cursor, f_doc);
 	}
