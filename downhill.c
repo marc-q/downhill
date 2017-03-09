@@ -221,18 +221,11 @@ tag_table_cb_char (struct _parser *parser)
 {
 	if (!parser->code && *parser->cursor == '|')
 	{
-		if (parser->thead)
-		{
-			parser_insert_tag (parser, TAG_TH, false);
-			parser_insert_tag (parser, TAG_TH, true);
-			parser_set_cursor (parser, parser->buf_pos + 2);
-		}
-		else
-		{
-			parser_insert_tag (parser, TAG_TD, false);
-			parser_insert_tag (parser, TAG_TD, true);
-			parser_set_cursor (parser, parser->buf_pos + 2);
-		}
+		const enum _tags tag = (parser->thead ? TAG_TH : TAG_TD);
+		
+		parser_insert_tag (parser, tag, false);
+		parser_insert_tag (parser, tag, true);
+		parser_set_cursor (parser, parser->buf_pos + 2);
 	}
 }
 
