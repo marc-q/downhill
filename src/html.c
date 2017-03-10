@@ -11,7 +11,7 @@
 void
 html_print_head (const char *pagename, FILE *f)
 {
-	fputs ("<html>\n<head>\n\t\t<meta charset=\"UTF-8\">\n\t\t<title>", f);
+	fputs ("<!DOCTYPE html>\n<html>\n<head>\n\t\t<meta charset=\"UTF-8\">\n\t\t<title>", f);
 	fputs (pagename, f);
 	fputs ("</title>\n<link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n", f);
 }
