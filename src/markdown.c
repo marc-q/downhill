@@ -132,6 +132,39 @@ md_process_blockquote (struct _md_parser *self, FILE *f_out)
 	}
 }
 
+static void
+md_process_img (struct _md_parser *self, FILE *f_out)
+{
+	if (strscmp (self->p.cursor, "!["))
+	{
+		const char *alt_end = strstr (self->p.cursor, "](");
+		const char *url_end = strchr (alt_end, ')');
+		
+		if (alt_end == NULL || url_end == NULL)
+		{
+			return;
+		}
+		
+		parser_cursor_seek (&self->p, 2);
+		fputs ("<img alt=\"", f_out);
+		while (*self->p.cursor && self->p.cursor != alt_end)
+		{
+			fputc (*self->p.cursor, f_out);
+			parser_cursor_seek (&self->p, 1);
+		}
+		
+		parser_cursor_seek (&self->p, 2);
+		fputs ("\" src=\"", f_out);
+		while (*self->p.cursor && self->p.cursor != url_end)
+		{
+			fputc (*self->p.cursor, f_out);
+			parser_cursor_seek (&self->p, 1);
+		}
+		fputs ("\">", f_out);
+		parser_cursor_seek (&self->p, 1);
+	}
+}
+
 /**
  * md_process_blockquote()
  * @self - Parser itself.
@@ -319,6 +352,7 @@ md_parse_nl (struct _md_parser *self, FILE *f_out)
 	md_process_header (self, f_out);
 	md_process_linebreak (self, f_out);
 	md_process_blockquote (self, f_out);
+	md_process_img (self, f_out);
 	md_process_ul (self, f_out);
 	md_process_table_nl (self, f_out);
 }
