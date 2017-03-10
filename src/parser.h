@@ -25,7 +25,6 @@ void parser_new (struct _parser*, const char*, const size_t);
 
 void parser_cursor_seek (struct _parser*, const long);
 
-
 bool parser_cb_newline (struct _parser*);
 
 #endif /* __DOWNHILL_PARSER_H__ */
