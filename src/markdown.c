@@ -120,15 +120,18 @@ md_process_blockquote (struct _md_parser *self, FILE *f_out)
 {
 	if (*self->p.cursor == '>')
 	{
-		html_print_tag ("blockquote", false, f_out);
-		self->blockquote = !self->blockquote;
+		if (!self->blockquote)
+		{
+			html_print_tag ("blockquote", false, f_out);
+			self->blockquote = true;
+		}
 		
 		parser_cursor_seek (&self->p, 1);
 	}
 	else if (self->blockquote)
 	{
 		html_print_tag ("blockquote", true, f_out);
-		self->blockquote = !self->blockquote;
+		self->blockquote = false;
 	}
 }
 
