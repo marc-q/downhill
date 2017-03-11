@@ -8,6 +8,15 @@
 // UTILS
 //
 
+/**
+ * strscmp()
+ * @a - String a.
+ * @b - Substring to compare.
+ *
+ * Check if @a starts with @b.
+ *
+ * Return: True if @a starts with @b, otherwise false.
+ */
 static bool
 strscmp (const char *a, const char *b)
 {
@@ -19,6 +28,17 @@ strscmp (const char *a, const char *b)
 // MD_PARSER
 //
 
+/**
+ * md_parser_new()
+ * @self - MD_Parser to initilize.
+ * @buf - Buffer to parse.
+ * @buf_len - Length of @buf
+ *
+ * Initilize @self with the default values and
+ * set its buffer by initilizing the base parser.
+ *
+ * Return: none
+ */
 void
 md_parser_new (struct _md_parser *self, const char *buf, const size_t buf_len)
 {
@@ -41,15 +61,6 @@ md_parser_new (struct _md_parser *self, const char *buf, const size_t buf_len)
 // BLOCK
 //
 
-/**
- * md_process_header()
- * @self - Parser itself.
- * @f_out - File Descriptor to which the output gets written to.
- *
- * Processes the header tags, should be called only on newlines.
- *
- * Return: none
- */
 static void
 md_process_header (struct _md_parser *self, FILE *f_out)
 {
@@ -86,15 +97,6 @@ md_process_header (struct _md_parser *self, FILE *f_out)
 	}
 }
 
-/**
- * md_process_linebreak()
- * @self - Parser itself.
- * @f_out - File Descriptor to which the output gets written to.
- *
- * Processes the linebreak tags, should be called only on newlines.
- *
- * Return: none
- */
 static void
 md_process_linebreak (struct _md_parser *self, FILE *f_out)
 {
@@ -106,15 +108,6 @@ md_process_linebreak (struct _md_parser *self, FILE *f_out)
 	}
 }
 
-/**
- * md_process_blockquote()
- * @self - Parser itself.
- * @f_out - File Descriptor to which the output gets written to.
- *
- * Processes the blockquote tags, should be called only on newlines.
- *
- * Return: none
- */
 static void
 md_process_blockquote (struct _md_parser *self, FILE *f_out)
 {
@@ -168,15 +161,6 @@ md_process_img (struct _md_parser *self, FILE *f_out)
 	}
 }
 
-/**
- * md_process_blockquote()
- * @self - Parser itself.
- * @f_out - File Descriptor to which the output gets written to.
- *
- * Processes the unordered list tags, should be called only on newlines.
- *
- * Return: none
- */
 static void
 md_process_ul (struct _md_parser *self, FILE *f_out)
 {
@@ -360,6 +344,16 @@ md_parse_nl (struct _md_parser *self, FILE *f_out)
 	md_process_table_nl (self, f_out);
 }
 
+/**
+ * md_parser_render()
+ * @self - MD_Parser to render.
+ * @f_out - File descriptor to output to.
+ *
+ * Renders the markdown buffer as HTML and
+ * write the HTML code to @f_out.
+ *
+ * Return: none
+ */
 void
 md_parser_render (struct _md_parser *self, FILE *f_out)
 {
