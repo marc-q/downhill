@@ -9,6 +9,11 @@ body
 	margin-left: 10%;
 }
 
+a
+{
+	color: #156aff;
+}
+
 blockquote, pre
 {
 	background-color: lightgrey;
