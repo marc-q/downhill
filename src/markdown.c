@@ -190,6 +190,43 @@ md_process_img (struct _md_parser *self, FILE *f_out)
 }
 
 //
+// BLOCK - Link
+//
+
+static void
+md_process_link (struct _md_parser *self, FILE *f_out)
+{
+	if (*self->p.cursor == '[')
+	{
+		const char *txt_end = strstr (self->p.cursor, "](");
+		const char *url_end = strchr (txt_end, ')');
+		
+		if (txt_end == NULL || url_end == NULL)
+		{
+			return;
+		}
+		
+		const char *url_start =  txt_end + 2;
+		fputs ("<a href=\"", f_out);
+		while (*url_start && url_start != url_end)
+		{
+			fputc (*url_start, f_out);
+			url_start++;
+		}
+		
+		parser_cursor_seek (&self->p, 1);
+		fputs ("\">", f_out);
+		while (*self->p.cursor && self->p.cursor != txt_end)
+		{
+			fputc (*self->p.cursor, f_out);
+			parser_cursor_seek (&self->p, 1);
+		}
+		html_print_tag ("a", true, f_out);
+		parser_cursor_seek (&self->p, (size_t) (url_end - txt_end) + 1);
+	}
+}
+
+//
 // BLOCK - Unordered list
 //
 
@@ -412,6 +449,7 @@ md_parser_render (struct _md_parser *self, FILE *f_out)
 			md_process_linebreak  (self, f_out);
 			md_process_blockquote (self, f_out);
 			md_process_img (self, f_out);
+			md_process_link (self, f_out);
 			md_process_ul (self, f_out);
 			md_process_table_nl (self, f_out);
 		}
