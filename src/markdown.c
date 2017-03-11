@@ -382,7 +382,6 @@ md_process_table_chr (struct _md_parser *self, FILE *f_out)
 	}
 }
 
-
 //
 // INLINE - EMPHASIS
 //
@@ -448,12 +447,12 @@ md_parser_render (struct _md_parser *self, FILE *f_out)
 			md_process_header (self, f_out);
 			md_process_linebreak  (self, f_out);
 			md_process_blockquote (self, f_out);
-			md_process_img (self, f_out);
-			md_process_link (self, f_out);
 			md_process_ul (self, f_out);
 			md_process_table_nl (self, f_out);
 		}
 		md_process_table_chr (self, f_out);
+		md_process_img (self, f_out);
+		md_process_link (self, f_out);
 		md_process_emphasis (self, f_out);
 		
 		if (*self->p.cursor != '\0')
