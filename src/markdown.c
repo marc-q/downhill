@@ -58,17 +58,23 @@ md_parser_new (struct _md_parser *self, const char *buf, const size_t buf_len)
 }
 
 //
-// BLOCK
+// BLOCK - Header
 //
 
 static void
-md_process_header (struct _md_parser *self, FILE *f_out)
+md_close_header (struct _md_parser *self, FILE *f_out)
 {
 	if (self->header > 0)
 	{
 		html_print_header (self->header, true, f_out);
 		self->header = 0;
 	}
+}
+
+static void
+md_process_header (struct _md_parser *self, FILE *f_out)
+{
+	md_close_header (self, f_out);
 	
 	if (*self->p.cursor == '#')
 	{
@@ -97,6 +103,10 @@ md_process_header (struct _md_parser *self, FILE *f_out)
 	}
 }
 
+//
+// BLOCK - Linebreak
+//
+
 static void
 md_process_linebreak (struct _md_parser *self, FILE *f_out)
 {
@@ -108,11 +118,26 @@ md_process_linebreak (struct _md_parser *self, FILE *f_out)
 	}
 }
 
+//
+// BLOCK - Blockquote
+//
+
+static void
+md_close_blockquote (struct _md_parser *self, FILE *f_out)
+{
+	if (self->blockquote)
+	{
+		html_print_tag ("blockquote", true, f_out);
+		self->blockquote = false;
+	}
+}
+
 static void
 md_process_blockquote (struct _md_parser *self, FILE *f_out)
 {
 	if (*self->p.cursor == '>')
 	{
+		// Only open the html tag once for multiline blockquotes!
 		if (!self->blockquote)
 		{
 			html_print_tag ("blockquote", false, f_out);
@@ -121,12 +146,15 @@ md_process_blockquote (struct _md_parser *self, FILE *f_out)
 		
 		parser_cursor_seek (&self->p, 1);
 	}
-	else if (self->blockquote)
+	else
 	{
-		html_print_tag ("blockquote", true, f_out);
-		self->blockquote = false;
+		md_close_blockquote (self, f_out);
 	}
 }
+
+//
+// BLOCK - Image
+//
 
 static void
 md_process_img (struct _md_parser *self, FILE *f_out)
@@ -161,13 +189,32 @@ md_process_img (struct _md_parser *self, FILE *f_out)
 	}
 }
 
+//
+// BLOCK - Unordered list
+//
+
 static void
-md_process_ul (struct _md_parser *self, FILE *f_out)
+md_close_li (struct _md_parser *self, FILE *f_out)
 {
 	if (self->list_ul > 0)
 	{
 		html_print_tag ("li", true, f_out);
 	}
+}
+
+static void
+md_close_ul (struct _md_parser *self, FILE *f_out)
+{
+	for (;self->list_ul > 0; self->list_ul--)
+	{
+		html_print_tag ("ul", true, f_out);
+	}
+}
+
+static void
+md_process_ul (struct _md_parser *self, FILE *f_out)
+{
+	md_close_li (self, f_out);
 	
 	// UL
 	if (strscmp (self->p.cursor, "* "))
@@ -198,10 +245,7 @@ md_process_ul (struct _md_parser *self, FILE *f_out)
 	}
 	else
 	{
-		for (;self->list_ul > 0; self->list_ul--)
-		{
-			html_print_tag ("ul", true, f_out);
-		}
+		md_close_ul (self, f_out);
 		return;
 	}
 	
@@ -212,8 +256,33 @@ md_process_ul (struct _md_parser *self, FILE *f_out)
 }
 
 //
-// TABLE
+// BLOCK - Table
 //
+
+static void
+md_close_table (struct _md_parser *self, FILE *f_out)
+{
+	if (self->table)
+	{
+		if (self->thead)
+		{
+			html_print_tag ("th", true, f_out);
+			html_print_tag ("tr", true, f_out);
+			html_print_tag ("thead", true, f_out);
+			self->thead = false;
+		}
+		
+		if (self->tbody)
+		{
+			html_print_tag ("td", true, f_out);
+			html_print_tag ("tr", true, f_out);
+			html_print_tag ("tbody", true, f_out);
+			self->tbody = false;
+		}
+		html_print_tag ("table", true, f_out);
+		self->table = false;
+	}
+}
 
 static void
 md_process_table_nl (struct _md_parser *self, FILE *f_out)
@@ -259,25 +328,9 @@ md_process_table_nl (struct _md_parser *self, FILE *f_out)
 		}
 		parser_cursor_seek (&self->p, 2);
 	}
-	else if (self->table)
+	else
 	{
-		if (self->thead)
-		{
-			html_print_tag ("th", true, f_out);
-			html_print_tag ("tr", true, f_out);
-			html_print_tag ("thead", true, f_out);
-			self->thead = false;
-		}
-		
-		if (self->tbody)
-		{
-			html_print_tag ("td", true, f_out);
-			html_print_tag ("tr", true, f_out);
-			html_print_tag ("tbody", true, f_out);
-			self->tbody = false;
-		}
-		html_print_tag ("table", true, f_out);
-		self->table = false;
+		md_close_table (self, f_out);
 	}
 }
 
@@ -294,7 +347,7 @@ md_process_table_chr (struct _md_parser *self, FILE *f_out)
 
 
 //
-// EMPHASIS
+// INLINE - EMPHASIS
 //
 
 static void
@@ -333,17 +386,6 @@ md_process_emphasis (struct _md_parser *self, FILE *f_out)
 // Parsing
 //
 
-static void
-md_parse_nl (struct _md_parser *self, FILE *f_out)
-{
-	md_process_header (self, f_out);
-	md_process_linebreak (self, f_out);
-	md_process_blockquote (self, f_out);
-	md_process_img (self, f_out);
-	md_process_ul (self, f_out);
-	md_process_table_nl (self, f_out);
-}
-
 /**
  * md_parser_render()
  * @self - MD_Parser to render.
@@ -366,7 +408,12 @@ md_parser_render (struct _md_parser *self, FILE *f_out)
 				continue;
 			}
 			
-			md_parse_nl (self, f_out);
+			md_process_header (self, f_out);
+			md_process_linebreak  (self, f_out);
+			md_process_blockquote (self, f_out);
+			md_process_img (self, f_out);
+			md_process_ul (self, f_out);
+			md_process_table_nl (self, f_out);
 		}
 		md_process_table_chr (self, f_out);
 		md_process_emphasis (self, f_out);
@@ -377,6 +424,10 @@ md_parser_render (struct _md_parser *self, FILE *f_out)
 		}
 		parser_cursor_seek (&self->p, 1);
 	}
-	parser_cursor_seek (&self->p, -1);
-	md_parse_nl (self, f_out);
+	
+	md_close_header (self, f_out);
+	md_close_blockquote (self, f_out);
+	md_close_li (self, f_out);
+	md_close_ul (self, f_out);
+	md_close_table (self, f_out);
 }
