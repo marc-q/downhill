@@ -119,14 +119,14 @@ test_file (const char *testcase, const char *filename_src, const char *filename_
 	}
 	
 	int r = DOWNHILL_TEST_FAILED;
-	if (!streql (buf, buf_cmp))
-	{
-		test_print_failed (testcase);
-	}
-	else
+	if (streql (buf, buf_cmp))
 	{
 		test_print_passed (testcase);
 		r = DOWNHILL_TEST_PASSED;
+	}
+	else
+	{
+		test_print_failed (testcase);
 	}
 	
 	free (buf);
